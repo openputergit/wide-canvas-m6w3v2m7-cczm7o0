@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kidgeni - Doodle Recognition</title>
+    <script src="https://unpkg.com/react@17/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+        .neubrutalism {
+            border: 3px solid black;
+            box-shadow: 5px 5px 0px black;
+        }
+        .canvas-container {
+            background: white;
+            border-radius: 8px;
+        }
+        .color-btn {
+            width: 30px;
+            height: 30px;
+            border: 2px solid black;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+        .color-btn.active {
+            border: 3px solid #000;
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body class="bg-[#FFF4BE]">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const App = () => {
+            const canvasRef = React.useRef(null);
+            const [isDrawing, setIsDrawing] = React.useState(false);
+            const [color, setColor] = React.useState('#000000');
+            const [result, setResult] = React.useState('');
+            const [isLoading, setIsLoading] = React.useState(false);
+            const [tool, setTool] = React.useState('pen'); // 'pen' or 'eraser'
+
+            const colors = ['#6B4EFF', '#FF6B6B', '#FF8F6B', '#6BFF8D', '#FFFFFF', '#000000'];
+
+            React.useEffect(() => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }, []);
+
+            const startDrawing = (e) => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                setIsDrawing(true);
+
+                ctx.strokeStyle = tool === 'eraser' ? '#FFFFFF' : color;
+                ctx.lineWidth = tool === 'eraser' ? 20 : 3;
+                ctx.lineCap = 'round';
+            };
+
+            const draw = (e) => {
+                if (!isDrawing) return;
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const rect = canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+
+                ctx.lineTo(x, y);
+                ctx.stroke();
+            };
+
+            const stopDrawing = () => {
+                setIsDrawing(false);
+            };
+
+            const clearCanvas = () => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#FFFFFF';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                setResult('');
+            };
+
+            const recognizeDoodle = async () => {
+                setIsLoading(true);
+                const canvas = canvasRef.current;
+                const imageData = canvas.toDataURL('image/png');
+
+                try {
+                    const response = await fetch('https://r0c8kgwocscg8gsokogwwsw4.zetaverse.one/ai', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer CxDJ9A6vAlM0SQqYHjpeKFtahIR2',
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            messages: [{
+                                role: 'user',
+                                content: [
+                                    {
+                                        type: 'text',
+                                        text: "What's drawn in this doodle?"
+                                    },
+                                    {
+                                        type: 'image_url',
+                                        image_url: {
+                                            url: imageData
+                                        }
+                                    }
+                                ]
+                            }]
+                        })
+                    });
+                    const data = await response.json();
+                    setResult(data.message);
+                } catch (error) {
+                    console.error('Error:', error);
+                    setResult('Error recognizing doodle');
+                }
+                setIsLoading(false);
+            };
+
+            return (
+                <div className="min-h-screen p-4">
+                    <nav className="flex justify-between items-center mb-8 p-4 neubrutalism bg-[#FFEB80] rounded-lg">
+                        <div className="text-2xl font-bold">kidgeni</div>
+                        <div className="flex gap-4">
+                            <button className="px-4 py-2 neubrutalism bg-white rounded-md">Create</button>
+                            <button className="px-4 py-2 neubrutalism bg-white rounded-md">Doodle</button>
+                            <button className="px-4 py-2 neubrutalism bg-white rounded-md">Stories</button>
+                            <button className="px-4 py-2 neubrutalism bg-white rounded-md">Books</button>
+                        </div>
+                        <div className="flex gap-4">
+                            <button className="px-4 py-2 neubrutalism bg-white rounded-md">Sign up for credits</button>
+                            <button className="px-4 py-2 neubrutalism bg-black text-white rounded-md">Sign in</button>
+                        </div>
+                    </nav>
+
+                    <div className="max-w-4xl mx-auto">
+                        <h1 className="text-2xl font-bold mb-4">What's on your mind?</h1>
+                        <div className="canvas-container neubrutalism mb-4">
+                            <canvas
+                                ref={canvasRef}
+                                width={800}
+                                height={500}
+                                onMouseDown={startDrawing}
+                                onMouseMove={draw}
+                                onMouseUp={stopDrawing}
+                                onMouseOut={stopDrawing}
+                                className="w-full"
+                            />
+                        </div>
+
+                        <div className="flex justify-between items-center mb-4">
+                            <div className="flex gap-2">
+                                {colors.map((c) => (
+                                    <button
+                                        key={c}
+                                        className={`color-btn ${color === c && tool === 'pen' ? 'active' : ''}`}
+                                        style={{ backgroundColor: c }}
+                                        onClick={() => {
+                                            setColor(c);
+                                            setTool('pen');
+                                        }}
+                                    />
+                                ))}
+                                <button
+                                    className={`p-2 neubrutalism bg-white rounded-md ${tool === 'eraser' ? 'bg-gray-200' : ''}`}
+                                    onClick={() => setTool('eraser')}
+                                >
+                                    <i className="bi bi-eraser"></i>
+                                </button>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    className="px-4 py-2 neubrutalism bg-white rounded-md"
+                                    onClick={clearCanvas}
+                                >
+                                    Clear
+                                </button>
+                                <button
+                                    className="px-4 py-2 neubrutalism bg-black text-white rounded-md"
+                                    onClick={recognizeDoodle}
+                                    disabled={isLoading}
+                                >
+                                    {isLoading ? 'Recognizing...' : 'Recognize Doodle'}
+                                </button>
+                            </div>
+                        </div>
+
+                        {result && (
+                            <div className="p-4 neubrutalism bg-white rounded-md">
+                                <h2 className="text-xl font-bold mb-2">Recognition Result:</h2>
+                                <p>{result}</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<App />, document.getElementById('root'));
+    </script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
